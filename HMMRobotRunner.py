@@ -25,6 +25,7 @@ class HMMRobotRunner:
         self.viewer.set_probabilities_list(ps)
         self.viewer.display_observations(observation_list=obs, accuracy=OBSERVATION_ACCURACY_RATE)
         self.viewer.display_world()
+        self.calculate_viterbi(obs)
 
     def load_file(self, filename) -> np.ndarray:
         map_list = []
@@ -120,15 +121,18 @@ class HMMRobotRunner:
         """
         N = len(observations)
 
-        V = np.ndarray([[0.0 for _ in range(self.num_open_squares)] for _ in range(N+1)])
-        V[0] = np.ndarray([1 / self.num_open_squares for _ in range(self.num_open_squares)]).dot(self.observation_matrix)
-        back = [[np.argmin(V[0]) for _ in range(self.num_open_squares)] for _ in range(N)]
-        for i in range(1,N):
+        V_list =[[0.0 for _ in range(16)] for _ in range(N+1)]
+        V = np.array(V_list, dtype=float)
+        pi_matrix = np.array([1 / self.num_open_squares for _ in range(self.num_open_squares)])
+        V[0] = pi_matrix.dot(self.observation_matrix)
+        back = [[np.argmin(V[0]) for _ in range(self.num_open_squares)] for _  in range(N)]
+        for step in range(1, N):
             for possible_current in range(self.num_open_squares):
-                temp = V[i-1].dot(self.transition_matrix).dot(self.observation_matrix)
-
+                temp = V[step-1, possible_current].dot(self.transition_matrix[:, possible_current]).dot(self.observation_matrix[:,observations[step-1]])
+                print(temp)
 
 
 if __name__ == "__main__":
     hmm_RR = HMMRobotRunner()
+
 

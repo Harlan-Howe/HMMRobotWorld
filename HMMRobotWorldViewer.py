@@ -4,6 +4,8 @@ from typing import List, Tuple, Optional
 import cv2
 import numpy as np
 
+OBSERVATION_DELAY = 50
+
 CELL_SIZE = 40
 
 class HMMRobotWorldViewer:
@@ -52,7 +54,7 @@ class HMMRobotWorldViewer:
             cv2.putText(img=canvas, text=f"{chr(i+65)}", org=(h_offset+CELL_SIZE//4,CELL_SIZE+7), fontFace=cv2.FONT_HERSHEY_SIMPLEX,
                         fontScale= 0.25, color = (0,0,0))
         cv2.imshow("Observations",canvas)
-        cv2.waitKey(250)
+        cv2.waitKey(OBSERVATION_DELAY)
 
     def draw_observation_box_at(self, canvas: np.ndarray, topleft:Tuple[int,int], filled:bool, accuracy:float = 1.0):
         if filled:

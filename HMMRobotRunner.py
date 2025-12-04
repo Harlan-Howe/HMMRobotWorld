@@ -1,6 +1,7 @@
 import random
 from typing import Optional, List, Tuple
 
+import cv2
 import numpy as np
 from HMMRobotWorldViewer import HMMRobotWorldViewer
 
@@ -121,15 +122,49 @@ class HMMRobotRunner:
         """
         N = len(observations)
 
-        V_list =[[0.0 for _ in range(16)] for _ in range(N+1)]
-        V = np.array(V_list, dtype=float)
+        V = np.array([[0.0 for _ in range(self.num_open_squares)] for _ in range(N+1)], dtype=float)
         pi_matrix = np.array([1 / self.num_open_squares for _ in range(self.num_open_squares)])
-        V[0] = pi_matrix.dot(self.observation_matrix)
-        back = [[np.argmin(V[0]) for _ in range(self.num_open_squares)] for _  in range(N)]
+        # print(f"{pi_matrix=}")
+        # print(f"{self.observation_matrix[:,observations[0]]=}")
+        V[0] = pi_matrix * self.observation_matrix[:,observations[0]]
+        # print(f"{V[0]=}")
+        temp = np.argmax(V[0])
+        back = np.array([[0 for _ in range(self.num_open_squares)] for _  in range(N)])
         for step in range(1, N):
-            for possible_current in range(self.num_open_squares):
-                temp = V[step-1, possible_current].dot(self.transition_matrix[:, possible_current]).dot(self.observation_matrix[:,observations[step-1]])
-                print(temp)
+            for possible_current_loc in range(self.num_open_squares):
+                print("-"*20, end=f"{possible_current_loc=}\n")
+                print(f"V[{step-1}]=\t")
+                for x in V[step-1]:
+                    print(f"{x:3.2f}",end="\t")
+                print()
+                print(f"a[:,{possible_current_loc}]=\t")
+                for x in self.transition_matrix[:,possible_current_loc]:
+                    print(f"{x:3.2f}",end="\t")
+                print()
+                mesh = V[step-1]*self.transition_matrix[:,possible_current_loc]
+                print("mesh @ 1=")
+                for x in mesh:
+                    print(f"{x:3.2f}",end = "\t")
+                print()
+                mesh = mesh * self.observation_matrix[possible_current_loc, observations[step]]
+                print("mesh @ 2=")
+                for x in mesh:
+                    print(f"{x:3.2f}", end="\t")
+                print()
+
+                V[step, possible_current_loc] = np.max(mesh)
+                back[step, possible_current_loc] = np.argmax(mesh)
+
+        print(f"Final back: {back}")
+        last = np.argmax(V[N])
+        print(f"{last=}")
+        self.viewer.display_world()
+
+            # for possible_current in range(self.num_open_squares):
+            #     temp = V[step-1, possible_current] * self.transition_matrix[:, possible_current] * self.observation_matrix[:,observations[step-1]]
+            #     print(f"{temp.shape=}")
+            #     print(temp)
+
 
 
 if __name__ == "__main__":

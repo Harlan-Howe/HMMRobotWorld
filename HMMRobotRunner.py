@@ -132,39 +132,37 @@ class HMMRobotRunner:
         back = np.array([[0 for _ in range(self.num_open_squares)] for _  in range(N)])
         for step in range(1, N):
             for possible_current_loc in range(self.num_open_squares):
-                print("-"*20, end=f"{possible_current_loc=}\n")
-                print(f"V[{step-1}]=\t")
-                for x in V[step-1]:
-                    print(f"{x:3.2f}",end="\t")
-                print()
-                print(f"a[:,{possible_current_loc}]=\t")
-                for x in self.transition_matrix[:,possible_current_loc]:
-                    print(f"{x:3.2f}",end="\t")
-                print()
+                # print("-"*20, end=f"{possible_current_loc=}\n")
+                # print(f"V[{step-1}]=\t")
+                # for x in V[step-1]:
+                #     print(f"{x:3.2f}",end="\t")
+                # print()
+                # print(f"a[:,{possible_current_loc}]=\t")
+                # for x in self.transition_matrix[:,possible_current_loc]:
+                #     print(f"{x:3.2f}",end="\t")
+                # print()
                 mesh = V[step-1]*self.transition_matrix[:, possible_current_loc]
-                print("mesh @ 1=")
-                for x in mesh:
-                    print(f"{x:3.2f}",end = "\t")
-                print()
+                # print("mesh @ 1=")
+                # for x in mesh:
+                #     print(f"{x:3.2f}",end = "\t")
+                # print()
                 mesh = mesh * self.observation_matrix[possible_current_loc, observations[step]]
-                print("mesh @ 2=")
-                for x in mesh:
-                    print(f"{x:3.2f}", end="\t")
-                print()
+                # print("mesh @ 2=")
+                # for x in mesh:
+                #     print(f"{x:3.2f}", end="\t")
+                # print()
 
                 V[step, possible_current_loc] = np.max(mesh)
                 back[step, possible_current_loc] = np.argmax(mesh)
 
-        print(f"Final back: {back}")
-        last = [np.argmax(back[N-1,:], axis=0),]
-        print(f"{last[0]=}")
+        path = [np.argmax(back[N-1,:], axis=0),]
         i = N-1
         while i > 0:
-            print(i)
-            pos = last[0]
-            last.insert(0, back[i, pos])
+            pos = path[0]
+            path.insert(0, back[i, pos])
             i -= 1
-        print(f"{last=}")
+        for i in range(len(path)):
+            print(f"{chr(i+65)}\t{path[i]}")
         self.viewer.display_world()
 
             # for possible_current in range(self.num_open_squares):

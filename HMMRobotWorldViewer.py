@@ -5,6 +5,7 @@ import cv2
 import numpy as np
 
 OBSERVATION_DELAY = 50
+OBSERVATIONS_PER_ROW = 20
 
 CELL_SIZE = 40
 
@@ -28,30 +29,33 @@ class HMMRobotWorldViewer:
             cv2.destroyWindow("World")
 
     def display_observations(self, observation_list: List[int], accuracy: float = 1.0):
-        canvas = np.ones((int(2*CELL_SIZE), int(1.75*CELL_SIZE*len(observation_list)),3), dtype=float) * 0.5
+        canvas = np.ones((int(2*CELL_SIZE*(1+(len(observation_list)-1)//OBSERVATIONS_PER_ROW)),
+                          int(1.75*CELL_SIZE*min(OBSERVATIONS_PER_ROW, len(observation_list))),3),
+                         dtype=float) * 0.5
         canvas[:, :, 0:2] = 0.65
 
         for i in range(len(observation_list)):
-            h_offset = int(0.5*CELL_SIZE+1.75*CELL_SIZE*i)
+            h_offset = int(0.5*CELL_SIZE+1.75*CELL_SIZE*(i%OBSERVATIONS_PER_ROW))
+            v_offset = int(2*CELL_SIZE*(i//OBSERVATIONS_PER_ROW))
             self.draw_observation_box_at(canvas=canvas,
-                                         topleft=(h_offset, CELL_SIZE//4),
+                                         topleft=(h_offset, v_offset+CELL_SIZE//4),
                                          filled = observation_list[i] & 1 == 1,
                                          accuracy = accuracy)
             self.draw_observation_box_at(canvas=canvas,
-                                         topleft=(h_offset+CELL_SIZE//2, 3*CELL_SIZE//4),
+                                         topleft=(h_offset+CELL_SIZE//2, v_offset+3*CELL_SIZE//4),
                                          filled=observation_list[i] & 2 == 2,
                                          accuracy = accuracy)
             self.draw_observation_box_at(canvas=canvas,
-                                         topleft=(h_offset,5*CELL_SIZE//4),
+                                         topleft=(h_offset, v_offset + 5*CELL_SIZE//4),
                                          filled = observation_list[i] & 4 == 4,
                                          accuracy = accuracy)
             self.draw_observation_box_at(canvas=canvas,
-                                         topleft=(h_offset - CELL_SIZE // 2, 3*CELL_SIZE // 4),
+                                         topleft=(h_offset - CELL_SIZE // 2, v_offset+3*CELL_SIZE // 4),
                                          filled=observation_list[i] & 8 == 8,
                                          accuracy = accuracy)
-            cv2.circle(img=canvas,center=(h_offset+CELL_SIZE//4, CELL_SIZE),
+            cv2.circle(img=canvas,center=(h_offset+CELL_SIZE//4, v_offset+CELL_SIZE),
                        radius = CELL_SIZE//4, color = (0.5, 0.5, 0.75), thickness = -1)
-            cv2.putText(img=canvas, text=f"{chr(i+65)}", org=(h_offset+CELL_SIZE//4,CELL_SIZE+7), fontFace=cv2.FONT_HERSHEY_SIMPLEX,
+            cv2.putText(img=canvas, text=f"{chr(i+65)}", org=(h_offset+CELL_SIZE//4, v_offset+CELL_SIZE+7), fontFace=cv2.FONT_HERSHEY_SIMPLEX,
                         fontScale= 0.25, color = (0,0,0))
         cv2.imshow("Observations",canvas)
         cv2.waitKey(OBSERVATION_DELAY)

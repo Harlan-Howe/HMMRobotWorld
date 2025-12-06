@@ -19,7 +19,7 @@ class HMMRobotRunner:
         self.viewer = HMMRobotWorldViewer(self.world)
         self.viewer.display_world(wait_for_keystroke=False, dismiss=False)
 
-        path, obs = self.generate_path_and_observations(20)
+        path, obs = self.generate_path_and_observations(40)
 
 
         ps = [1/self.num_open_squares for _ in range(self.num_open_squares)]
@@ -141,7 +141,7 @@ class HMMRobotRunner:
                 for x in self.transition_matrix[:,possible_current_loc]:
                     print(f"{x:3.2f}",end="\t")
                 print()
-                mesh = V[step-1]*self.transition_matrix[:,possible_current_loc]
+                mesh = V[step-1]*self.transition_matrix[:, possible_current_loc]
                 print("mesh @ 1=")
                 for x in mesh:
                     print(f"{x:3.2f}",end = "\t")
@@ -156,7 +156,14 @@ class HMMRobotRunner:
                 back[step, possible_current_loc] = np.argmax(mesh)
 
         print(f"Final back: {back}")
-        last = np.argmax(V[N])
+        last = [np.argmax(back[N-1,:], axis=0),]
+        print(f"{last[0]=}")
+        i = N-1
+        while i > 0:
+            print(i)
+            pos = last[0]
+            last.insert(0, back[i, pos])
+            i -= 1
         print(f"{last=}")
         self.viewer.display_world()
 

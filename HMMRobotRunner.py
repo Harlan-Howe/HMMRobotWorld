@@ -5,7 +5,7 @@ import cv2
 import numpy as np
 from HMMRobotWorldViewer import HMMRobotWorldViewer
 
-OBSERVATION_ACCURACY_RATE = 1.0
+OBSERVATION_ACCURACY_RATE = 0.95
 
 class HMMRobotRunner:
     def __init__(self):
@@ -26,7 +26,17 @@ class HMMRobotRunner:
         self.viewer.set_probabilities_list(ps)
         self.viewer.display_observations(observation_list=obs, accuracy=OBSERVATION_ACCURACY_RATE)
         self.viewer.display_world()
-        self.calculate_viterbi(obs)
+        predicted_path = self.calculate_viterbi(obs)
+
+        missed = 0
+        for i in range(len(path)):
+            print(f"{chr(i+65)}\t{path[i]}\t{predicted_path[i]}")
+            if path[i] != predicted_path[i]:
+                missed += 1
+        print(f'Num missed = {missed}')
+        print(f"Accuracy = {(1-missed/len(path))*100:3.2f}%")
+        print(f"Observtion Accuracy = {OBSERVATION_ACCURACY_RATE*100:3.2f}")
+        self.viewer.display_world()
 
     def load_file(self, filename) -> np.ndarray:
         map_list = []
@@ -161,10 +171,9 @@ class HMMRobotRunner:
             pos = path[0]
             path.insert(0, back[i, pos])
             i -= 1
-        for i in range(len(path)):
-            print(f"{chr(i+65)}\t{path[i]}")
-        self.viewer.display_world()
 
+
+        return path
             # for possible_current in range(self.num_open_squares):
             #     temp = V[step-1, possible_current] * self.transition_matrix[:, possible_current] * self.observation_matrix[:,observations[step-1]]
             #     print(f"{temp.shape=}")

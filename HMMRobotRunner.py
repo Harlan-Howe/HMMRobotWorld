@@ -38,6 +38,8 @@ class HMMRobotRunner:
         print(f"Observtion Accuracy = {OBSERVATION_ACCURACY_RATE*100:3.2f}")
         self.viewer.display_world()
 
+        self.viewer.draw_path(predicted_path)
+
     def load_file(self, filename) -> np.ndarray:
         map_list = []
         try:

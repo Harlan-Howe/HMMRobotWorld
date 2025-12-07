@@ -23,13 +23,13 @@ class HMMRobotWorldViewer:
         canvas = self.build_starter()
 
         cv2.imshow("World", canvas)
-        cv2.moveWindow("World", 0, 3 * CELL_SIZE)
+        cv2.moveWindow("World", 0, 7 * CELL_SIZE)
         if wait_for_keystroke:
             cv2.waitKey()
         if dismiss:
             cv2.destroyWindow("World")
 
-    def display_observations(self, observation_list: List[int], accuracy: float = 1.0):
+    def display_observations(self, observation_list: List[int], accuracy: float = 1.0, highlight_obs_num:int = -1):
         canvas = np.ones((int(2*CELL_SIZE*(1+(len(observation_list)-1)//OBSERVATIONS_PER_ROW)),
                           int(1.75*CELL_SIZE*min(OBSERVATIONS_PER_ROW, len(observation_list))),3),
                          dtype=float) * 0.5
@@ -58,6 +58,14 @@ class HMMRobotWorldViewer:
                        radius = CELL_SIZE//4, color = (0.5, 0.5, 0.75), thickness = -1)
             cv2.putText(img=canvas, text=f"{chr(i+65)}", org=(h_offset+CELL_SIZE//4, v_offset+CELL_SIZE+7), fontFace=cv2.FONT_HERSHEY_SIMPLEX,
                         fontScale= 0.25, color = (0,0,0))
+
+        if highlight_obs_num >= 0:
+            h_offset = int(0.25 * CELL_SIZE + 1.75 * CELL_SIZE * (highlight_obs_num % OBSERVATIONS_PER_ROW))
+            v_offset = int(2 * CELL_SIZE * (highlight_obs_num // OBSERVATIONS_PER_ROW))
+            cv2.rectangle(img=canvas, pt1=(h_offset-CELL_SIZE//2, v_offset),
+                          pt2 = (h_offset+(3*CELL_SIZE)//2, v_offset+2* CELL_SIZE),
+                          color=(1, 0, 0),
+                          thickness = 3)
         cv2.imshow("Observations",canvas)
         cv2.waitKey(OBSERVATION_DELAY)
 

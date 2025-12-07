@@ -32,6 +32,7 @@ class HMMRobotRunner:
         for i in range(len(obs)):
             self.viewer.set_probabilities_list(probabilities[i])
             self.viewer.display_world(False, False)
+            self.viewer.display_observations(observation_list=obs, accuracy=OBSERVATION_ACCURACY_RATE, highlight_obs_num=i)
             cv2.waitKey(500)
 
 

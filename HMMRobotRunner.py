@@ -26,16 +26,27 @@ class HMMRobotRunner:
         self.viewer.set_probabilities_list(ps)
         self.viewer.display_observations(observation_list=obs, accuracy=OBSERVATION_ACCURACY_RATE)
         self.viewer.display_world()
+        # self.test_viterbi(obs, path)
+
+        probabilities = self.calculate_probabilities(obs)
+        for i in range(len(obs)):
+            self.viewer.set_probabilities_list(probabilities[i])
+            self.viewer.display_world(False, False)
+            cv2.waitKey(500)
+
+
+
+    def test_viterbi(self, obs: list[int], path: list[int]):
         predicted_path = self.calculate_viterbi(obs)
 
         missed = 0
         for i in range(len(path)):
-            print(f"{chr(i+65)}\t{path[i]}\t{predicted_path[i]}")
+            print(f"{chr(i + 65)}\t{path[i]}\t{predicted_path[i]}")
             if path[i] != predicted_path[i]:
                 missed += 1
         print(f'Num missed = {missed}')
-        print(f"Accuracy = {(1-missed/len(path))*100:3.2f}%")
-        print(f"Observtion Accuracy = {OBSERVATION_ACCURACY_RATE*100:3.2f}")
+        print(f"Accuracy = {(1 - missed / len(path)) * 100:3.2f}%")
+        print(f"Observtion Accuracy = {OBSERVATION_ACCURACY_RATE * 100:3.2f}")
         self.viewer.display_world()
 
         self.viewer.draw_path(predicted_path)
@@ -176,10 +187,33 @@ class HMMRobotRunner:
 
 
         return path
-            # for possible_current in range(self.num_open_squares):
-            #     temp = V[step-1, possible_current] * self.transition_matrix[:, possible_current] * self.observation_matrix[:,observations[step-1]]
-            #     print(f"{temp.shape=}")
-            #     print(temp)
+
+
+    def forward(self, observations:List[int]) -> np.ndarray:
+        N = len(observations)
+        alpha = np.zeros((N, self.num_open_squares), dtype=float)
+        alpha[0,:] =   1/self.num_open_squares
+        for i in range(1,N):
+            alpha[i, :] = alpha[i-1, :].dot(self.transition_matrix) * self.observation_matrix[:, observations[i]]
+        return alpha
+
+    def backward(self, observations:List[int]) -> np.ndarray:
+        N = len(observations)
+        beta = np.ones((N, self.num_open_squares), dtype=float)
+        for i in range(N-2, -1, -1):
+            beta[i, :] = self.transition_matrix.dot(beta[i+1,:]*self.observation_matrix[:, observations[i]])
+            beta[i, :] /= np.sum(beta[i,:])
+        return beta
+
+    def calculate_probabilities(self, observations:List[int]) -> np.ndarray:
+        alpha = self.forward(observations)
+        beta = self.forward(observations)
+        gamma = alpha * beta
+        normalize_totals = np.sum(gamma, axis=1)
+        for i in range(len(observations)):
+            gamma[i] = gamma[i,:]/normalize_totals[i]
+
+        return gamma
 
 
 

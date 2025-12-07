@@ -1,3 +1,4 @@
+import math
 import random
 from typing import List, Tuple, Optional
 
@@ -15,7 +16,7 @@ class HMMRobotWorldViewer:
         self.base = base_world
         self.probabilities_list: Optional[List[float]] = None
 
-    def set_probabilities_list(self, ps: Optional[List[float]]):
+    def set_probabilities_list(self, ps: Optional[np.ndarray]):
         self.probabilities_list = ps
 
     def display_world(self, wait_for_keystroke: bool = True, dismiss: bool = True):
@@ -69,7 +70,7 @@ class HMMRobotWorldViewer:
                           thickness= -1)
             if accuracy < 1:
                 for x in range(topleft[0],topleft[0]+CELL_SIZE//2):
-                    for y in range(topleft[1],topleft[1]+CELL_SIZE//2):
+                    for y in range(topleft[1], topleft[1]+CELL_SIZE//2):
                         if random.random() > accuracy:
                             canvas[y,x] = (1, 1, 1)
         else:
@@ -86,6 +87,7 @@ class HMMRobotWorldViewer:
 
     def build_starter(self) -> np.ndarray:
         space_num = 0
+        self.coordinate_list:List[Tuple[int, int]] = []
         result = np.zeros((self.base.shape[0]*CELL_SIZE, self.base.shape[1]*CELL_SIZE, 3), dtype=float)
         for row in range(self.base.shape[0]):
             for col in range(self.base.shape[1]):
@@ -109,7 +111,7 @@ class HMMRobotWorldViewer:
                                 fontScale=0.5,
                                 color=(1, 1, 1),
                                 thickness=2)
-
+                    self.coordinate_list.append((row, col))
                     cv2.putText(img=result,
                                 text=f"{space_num}",
                                 org=(int(CELL_SIZE*(col + 0.25)), int(CELL_SIZE*(row + 0.75))),
@@ -118,5 +120,27 @@ class HMMRobotWorldViewer:
                                 color=(0.5, 0.25, 0),
                                 thickness=2)
                     space_num += 1
-
         return result
+
+
+
+    def draw_path(self, stops:List[int]):
+        canvas = self.build_starter()
+        last_x:Optional[int] = None
+        last_y:Optional[int] = None
+        theta = 0
+        for spot in stops:
+            x = int((self.coordinate_list[spot][1]+0.2+0.6*random.random())*CELL_SIZE)
+            y = int((self.coordinate_list[spot][0]+0.2+0.6*random.random())*CELL_SIZE)
+            if last_x is not None:
+                cv2.line(img=canvas, pt1=(last_x, last_y), pt2= (x, y),
+                         color=(0.5+0.2*math.sin(theta), 0.5+0.2*math.cos(2*theta), 0.5+0.2*math.sin(theta/3)),
+                         thickness=2)
+            last_x = x
+            last_y = y
+            theta += math.pi * 2/ len(stops)
+
+        cv2.imshow("World", canvas)
+        cv2.waitKey()
+
+

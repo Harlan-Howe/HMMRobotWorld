@@ -5,7 +5,7 @@ import cv2
 import numpy as np
 from HMMRobotWorldViewer import HMMRobotWorldViewer
 
-OBSERVATION_ACCURACY_RATE = 0.95
+OBSERVATION_ACCURACY_RATE = 0.85
 
 class HMMRobotRunner:
     def __init__(self):
@@ -19,7 +19,7 @@ class HMMRobotRunner:
         self.viewer = HMMRobotWorldViewer(self.world)
         self.viewer.display_world(wait_for_keystroke=False, dismiss=False)
 
-        path, obs = self.generate_path_and_observations(40)
+        path, obs = self.generate_path_and_observations(60)
 
 
         ps = [1/self.num_open_squares for _ in range(self.num_open_squares)]
@@ -28,14 +28,16 @@ class HMMRobotRunner:
         self.viewer.display_world()
         # self.test_viterbi(obs, path)
 
+        self.test_forward_backward(obs)
+
+    def test_forward_backward(self, obs: list[int]):
         probabilities = self.calculate_probabilities(obs)
         for i in range(len(obs)):
             self.viewer.set_probabilities_list(probabilities[i])
             self.viewer.display_world(False, False)
-            self.viewer.display_observations(observation_list=obs, accuracy=OBSERVATION_ACCURACY_RATE, highlight_obs_num=i)
+            self.viewer.display_observations(observation_list=obs, accuracy=OBSERVATION_ACCURACY_RATE,
+                                             highlight_obs_num=i)
             cv2.waitKey(500)
-
-
 
     def test_viterbi(self, obs: list[int], path: list[int]):
         predicted_path = self.calculate_viterbi(obs)
@@ -146,36 +148,16 @@ class HMMRobotRunner:
         """
         N = len(observations)
 
-        V = np.array([[0.0 for _ in range(self.num_open_squares)] for _ in range(N+1)], dtype=float)
-        pi_matrix = np.array([1 / self.num_open_squares for _ in range(self.num_open_squares)])
-        # print(f"{pi_matrix=}")
-        # print(f"{self.observation_matrix[:,observations[0]]=}")
+        # V = np.array([[0.0 for _ in range(self.num_open_squares)] for _ in range(N+1)], dtype=float)
+        V = np.zeros((N+1, self.num_open_squares), dtype=float)
+        # pi_matrix = np.array([1 / self.num_open_squares for _ in range(self.num_open_squares)])
+        pi_matrix = np.ones((self.num_open_squares),dtype=float) / self.num_open_squares
         V[0] = pi_matrix * self.observation_matrix[:,observations[0]]
-        # print(f"{V[0]=}")
-        temp = np.argmax(V[0])
         back = np.array([[0 for _ in range(self.num_open_squares)] for _  in range(N)])
         for step in range(1, N):
             for possible_current_loc in range(self.num_open_squares):
-                # print("-"*20, end=f"{possible_current_loc=}\n")
-                # print(f"V[{step-1}]=\t")
-                # for x in V[step-1]:
-                #     print(f"{x:3.2f}",end="\t")
-                # print()
-                # print(f"a[:,{possible_current_loc}]=\t")
-                # for x in self.transition_matrix[:,possible_current_loc]:
-                #     print(f"{x:3.2f}",end="\t")
-                # print()
-                mesh = V[step-1]*self.transition_matrix[:, possible_current_loc]
-                # print("mesh @ 1=")
-                # for x in mesh:
-                #     print(f"{x:3.2f}",end = "\t")
-                # print()
+                mesh = V[step-1] * self.transition_matrix[:, possible_current_loc]
                 mesh = mesh * self.observation_matrix[possible_current_loc, observations[step]]
-                # print("mesh @ 2=")
-                # for x in mesh:
-                #     print(f"{x:3.2f}", end="\t")
-                # print()
-
                 V[step, possible_current_loc] = np.max(mesh)
                 back[step, possible_current_loc] = np.argmax(mesh)
 

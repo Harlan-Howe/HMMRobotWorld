@@ -77,10 +77,11 @@ class HMMRobotWorldViewer:
                           color= (0,0,0),
                           thickness= -1)
             if accuracy < 1:
-                for x in range(topleft[0],topleft[0]+CELL_SIZE//2):
-                    for y in range(topleft[1], topleft[1]+CELL_SIZE//2):
+                for x in range(topleft[0], topleft[0]+CELL_SIZE//2+1):
+                    for y in range(topleft[1], topleft[1]+CELL_SIZE//2+1):
                         if random.random() > accuracy:
-                            canvas[y,x] = (1, 1, 1)
+                            canvas[y, x] = (1, 1, 1)
+                            # cv2.rectangle(img=canvas, pt1=(x, y), pt2=(x+1, y+1), color = (1,1,1), thickness= -1)
         else:
             cv2.rectangle(img=canvas,
                           pt1=topleft,
@@ -88,11 +89,11 @@ class HMMRobotWorldViewer:
                           color=(1, 1, 1),
                           thickness=-1)
             if accuracy < 1:
-                for x in range(topleft[0],topleft[0]+CELL_SIZE//2,2):
-                    for y in range(topleft[1],topleft[1]+CELL_SIZE//2,2):
+                for x in range(topleft[0], topleft[0]+CELL_SIZE//2+1):
+                    for y in range(topleft[1], topleft[1]+CELL_SIZE//2+1):
                         if random.random() > accuracy:
                             canvas[y,x] = (0, 0, 0)
-
+                            # cv2.rectangle(img=canvas, pt1=(x, y), pt2=(x + 1, y + 1), color=(0, 0, 0), thickness=-1)
     def build_starter(self) -> np.ndarray:
         space_num = 0
         self.coordinate_list:List[Tuple[int, int]] = []
@@ -111,7 +112,7 @@ class HMMRobotWorldViewer:
                                    center=(CELL_SIZE * col + CELL_SIZE // 2, CELL_SIZE * row + CELL_SIZE // 2),
                                    radius= CELL_SIZE // 3,
                                    color=(0.5 - 0.5 * prob, 0.5 - 0.5 * prob, 1 - 0.5 * prob),
-                                   thickness=int(1 + prob * 6))
+                                   thickness=int(prob * CELL_SIZE//3))
                     cv2.putText(img=result,
                                 text=f"{space_num}",
                                 org=(int(CELL_SIZE * (col + 0.25))+1, int(CELL_SIZE * (row + 0.75))+1),

@@ -56,8 +56,8 @@ class HMMRobotWorldViewer:
                                          accuracy = accuracy)
             cv2.circle(img=canvas,center=(h_offset+CELL_SIZE//4, v_offset+CELL_SIZE),
                        radius = CELL_SIZE//4, color = (0.5, 0.5, 0.75), thickness = -1)
-            cv2.putText(img=canvas, text=f"{chr(i+65)}", org=(h_offset+CELL_SIZE//4, v_offset+CELL_SIZE+7), fontFace=cv2.FONT_HERSHEY_SIMPLEX,
-                        fontScale= 0.25, color = (0,0,0))
+            cv2.putText(img=canvas, text=f"{chr(i+65)}", org=(h_offset+3*CELL_SIZE//16, v_offset+CELL_SIZE+7), fontFace=cv2.FONT_HERSHEY_SIMPLEX,
+                        fontScale= 0.375, color = (0,0,0))
 
         if highlight_obs_num >= 0:
             h_offset = int(0.25 * CELL_SIZE + 1.75 * CELL_SIZE * (highlight_obs_num % OBSERVATIONS_PER_ROW))

@@ -1,4 +1,5 @@
 import random
+from sysconfig import expand_makefile_vars
 from typing import Optional, List, Tuple
 
 import cv2
@@ -11,6 +12,7 @@ class HMMRobotRunner:
     def __init__(self):
         self.world = self.load_file("HMM Robot World - Sheet1.tsv")
         self.num_open_squares = np.count_nonzero(self.world == 0)
+        self.pi_matrix: Optional[np.ndarray] = None
         self.transition_matrix: Optional[np.ndarray] = None
         self.observation_matrix: Optional[np.ndarray] = None
         self.viewer = None
@@ -28,7 +30,7 @@ class HMMRobotRunner:
         self.viewer.display_world()
         # self.test_viterbi(obs, path)
 
-        self.test_forward_backward(obs)
+        # self.test_forward_backward(obs)
 
     def test_forward_backward(self, obs: list[int]):
         probabilities = self.calculate_probabilities(obs)
@@ -80,8 +82,8 @@ class HMMRobotRunner:
             for col in range(self.world.shape[1]):
                 if self.world[row, col] == 0:
                     numbered_map[row, col] = count
-                    count+=1
-
+                    count += 1
+        self.pi_matrix = np.ones(self.num_open_squares, dtype=float) / self.num_open_squares
         self.transition_matrix = np.zeros((self.num_open_squares, self.num_open_squares), dtype=float)
         self.observation_matrix = np.zeros((self.num_open_squares, 16), dtype=float)
 
@@ -149,8 +151,7 @@ class HMMRobotRunner:
         N = len(observations)
 
         V = np.zeros((N+1, self.num_open_squares), dtype=float)
-        pi_matrix = np.ones((self.num_open_squares),dtype=float) / self.num_open_squares
-        V[0] = pi_matrix * self.observation_matrix[:,observations[0]]
+        V[0] = self.pi_matrix * self.observation_matrix[:,observations[0]]
         back = np.array([[0 for _ in range(self.num_open_squares)] for _  in range(N)])
         for step in range(1, N):
             for possible_current_loc in range(self.num_open_squares):
@@ -170,33 +171,88 @@ class HMMRobotRunner:
         return path
 
 
-    def forward(self, observations:List[int]) -> np.ndarray:
+    def forward(self, observations:List[int],
+                pi_matrix:Optional[np.ndarray] = None,
+                trans_matrix:Optional[np.ndarray] = None,
+                obs_matrix:Optional[np.ndarray] = None) -> np.ndarray:
         N = len(observations)
+        if pi_matrix is None:
+            pi_matrix = np.ones(self.num_open_squares)/self.num_open_squares
+        if trans_matrix is None:
+            trans_matrix = self. transition_matrix
+        if obs_matrix is None:
+            obs_matrix = self.observation_matrix
+
         alpha = np.zeros((N, self.num_open_squares), dtype=float)
-        alpha[0,:] =   1/self.num_open_squares
-        for i in range(1,N):
-            alpha[i, :] = alpha[i-1, :].dot(self.transition_matrix) * self.observation_matrix[:, observations[i]]
+        alpha[0, :] = pi_matrix
+        for i in range(1, N):
+            alpha[i, :] = alpha[i-1, :].dot(trans_matrix) * obs_matrix[:, observations[i]]
         return alpha
 
-    def backward(self, observations:List[int]) -> np.ndarray:
+    def backward(self, observations: List[int],
+                 trans_matrix:Optional[np.ndarray] = None,
+                 obs_matrix:Optional[np.ndarray] = None) -> np.ndarray:
         N = len(observations)
+        if trans_matrix is None:
+            trans_matrix = self. transition_matrix
+        if obs_matrix is None:
+            obs_matrix = self.observation_matrix
         beta = np.ones((N, self.num_open_squares), dtype=float)
         for i in range(N-2, -1, -1):
-            beta[i, :] = self.transition_matrix.dot(beta[i+1,:]*self.observation_matrix[:, observations[i]])
-            beta[i, :] /= np.sum(beta[i,:])
+            beta[i, :] = trans_matrix.dot(beta[i+1, :] * obs_matrix[:, observations[i]])
+            beta[i, :] /= np.sum(beta[i, :])
         return beta
 
-    def calculate_probabilities(self, observations:List[int]) -> np.ndarray:
-        alpha = self.forward(observations)
-        beta = self.forward(observations)
+    def calculate_probabilities(self, observations: List[int],
+                                pi_matrix: Optional[np.ndarray] = None,
+                                trans_matrix:Optional[np.ndarray] = None,
+                                obs_matrix:Optional[np.ndarray] = None) -> np.ndarray:
+        N = len(observations)
+        if pi_matrix is None:
+            pi_matrix = np.ones(self.num_open_squares)/self.num_open_squares
+        if trans_matrix is None:
+            trans_matrix = self. transition_matrix
+        if obs_matrix is None:
+            obs_matrix = self.observation_matrix
+        alpha = self.forward(observations, pi_matrix, trans_matrix, obs_matrix)
+        beta = self.forward(observations, trans_matrix, obs_matrix)
         gamma = alpha * beta
         normalize_totals = np.sum(gamma, axis=1)
         for i in range(len(observations)):
-            gamma[i] = gamma[i,:]/normalize_totals[i]
-
+            gamma[i] = gamma[i, :]/normalize_totals[i]
         return gamma
 
+    def baum_welch(self, observations:List[int]):
+        pi_matrix = np.random.rand(self.num_open_squares)
+        transition_matrix = np.random.rand(self.num_open_squares, self.num_open_squares)
+        observation_matrix = np.random.rand(self.num_open_squares, 16)
 
+        for i in range(10):
+            gamma, xi = self.expectation(observations, pi_matrix, transition_matrix, observation_matrix)
+            pi_matrix, transition_matrix, observation_matrix = self.maximization(gamma, xi, observations)
+
+
+
+    def expectation(self, observations: List[int],
+                    pi_matrix:np.ndarray,
+                    trans_matrix:np.ndarray,
+                    obs_matrix:np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+        gamma = self.calculate_probabilities(observations, pi_matrix, trans_matrix, obs_matrix)
+        xi = np.zeros((self.num_open_squares, self.num_open_squares, len(observations)-1), dtype=float)
+        for i in range(len(observations)-1):
+            xi[i] = gamma[i, :, np.newaxis] * gamma[i+1, :]
+        return gamma, xi
+
+    def maximization(self, gamma, xi, observations) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        pi_matrix = gamma[0, :]
+        trans_matrix = np.sum(xi, axis=2)/ np.sum(gamma, axis=1)
+        obs_matrix = np.zeros((self.num_open_squares, 16), dtype=float)
+        for i in range(self.num_open_squares):
+            for t in range(gamma.shape[0]):
+                obs_matrix[i, observations[t]] += gamma[t, i]
+        obs_matrix /= np.sum(gamma, axis=1)
+
+        return pi_matrix, trans_matrix, obs_matrix
 
 if __name__ == "__main__":
     hmm_RR = HMMRobotRunner()

@@ -5,7 +5,7 @@ import cv2
 import numpy as np
 from HMMRobotWorldViewer import HMMRobotWorldViewer
 
-OBSERVATION_ACCURACY_RATE = 0.85
+OBSERVATION_ACCURACY_RATE = 1.0
 
 class HMMRobotRunner:
     def __init__(self):
@@ -148,9 +148,7 @@ class HMMRobotRunner:
         """
         N = len(observations)
 
-        # V = np.array([[0.0 for _ in range(self.num_open_squares)] for _ in range(N+1)], dtype=float)
         V = np.zeros((N+1, self.num_open_squares), dtype=float)
-        # pi_matrix = np.array([1 / self.num_open_squares for _ in range(self.num_open_squares)])
         pi_matrix = np.ones((self.num_open_squares),dtype=float) / self.num_open_squares
         V[0] = pi_matrix * self.observation_matrix[:,observations[0]]
         back = np.array([[0 for _ in range(self.num_open_squares)] for _  in range(N)])

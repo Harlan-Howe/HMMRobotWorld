@@ -1,5 +1,6 @@
 import math
 import random
+from cmath import nan
 from typing import List, Tuple, Optional
 
 import cv2
@@ -32,7 +33,7 @@ class HMMRobotWorldViewer:
     def display_observations(self, observation_list: List[int], accuracy: float = 1.0, highlight_obs_num:int = -1):
         canvas = np.ones((int(2*CELL_SIZE*(1+(len(observation_list)-1)//OBSERVATIONS_PER_ROW)),
                           int(1.75*CELL_SIZE*min(OBSERVATIONS_PER_ROW, len(observation_list))),3),
-                         dtype=float) * 0.5
+                         dtype=np.uint8) * 127
         canvas[:, :, 0:2] = 0.65
 
         for i in range(len(observation_list)):
@@ -55,7 +56,7 @@ class HMMRobotWorldViewer:
                                          filled=observation_list[i] & 8 == 8,
                                          accuracy = accuracy)
             cv2.circle(img=canvas,center=(h_offset+CELL_SIZE//4, v_offset+CELL_SIZE),
-                       radius = CELL_SIZE//4, color = (0.5, 0.5, 0.75), thickness = -1)
+                       radius = CELL_SIZE//4, color = (127, 127, 192), thickness = -1)
             cv2.putText(img=canvas, text=f"{chr(i+65)}", org=(h_offset+3*CELL_SIZE//16, v_offset+CELL_SIZE+7), fontFace=cv2.FONT_HERSHEY_SIMPLEX,
                         fontScale= 0.375, color = (0,0,0))
 
@@ -64,7 +65,7 @@ class HMMRobotWorldViewer:
             v_offset = int(2 * CELL_SIZE * (highlight_obs_num // OBSERVATIONS_PER_ROW))
             cv2.rectangle(img=canvas, pt1=(h_offset-CELL_SIZE//2, v_offset),
                           pt2 = (h_offset+(3*CELL_SIZE)//2, v_offset+2* CELL_SIZE),
-                          color=(1, 0, 0),
+                          color=(255, 0, 0),
                           thickness = 3)
         cv2.imshow("Observations",canvas)
         cv2.waitKey(OBSERVATION_DELAY)
@@ -81,12 +82,12 @@ class HMMRobotWorldViewer:
                     for y in range(topleft[1], topleft[1]+CELL_SIZE//2+1):
                         if random.random() > accuracy:
                             canvas[y, x] = (1, 1, 1)
-                            # cv2.rectangle(img=canvas, pt1=(x, y), pt2=(x+1, y+1), color = (1,1,1), thickness= -1)
+                            # cv2.rectangle(img=canvas, pt1=(x, y), pt2=(x+1, y+1), color = (255,255,255), thickness= -1)
         else:
             cv2.rectangle(img=canvas,
                           pt1=topleft,
                           pt2=(int(topleft[0] + CELL_SIZE / 2), int(topleft[1] + CELL_SIZE / 2)),
-                          color=(1, 1, 1),
+                          color=(255,255,255),
                           thickness=-1)
             if accuracy < 1:
                 for x in range(topleft[0], topleft[0]+CELL_SIZE//2+1):
@@ -97,28 +98,29 @@ class HMMRobotWorldViewer:
     def build_starter(self) -> np.ndarray:
         space_num = 0
         self.coordinate_list:List[Tuple[int, int]] = []
-        result = np.zeros((self.base.shape[0]*CELL_SIZE, self.base.shape[1]*CELL_SIZE, 3), dtype=float)
+        result = np.zeros((self.base.shape[0]*CELL_SIZE, self.base.shape[1]*CELL_SIZE, 3), dtype=np.uint8)
         for row in range(self.base.shape[0]):
             for col in range(self.base.shape[1]):
                 if self.base[row, col] == 0:
                     cv2.rectangle(img=result,
                                   pt1=(CELL_SIZE*col+1, CELL_SIZE*row+1),
                                   pt2=(CELL_SIZE*(col+1)-1, CELL_SIZE*(row+1)-1),
-                                  color=(1.0, 1.0, 1.0),
+                                  color=(255, 255, 255),
                                   thickness=-1)
                     if self.probabilities_list is not None and len(self.probabilities_list)>space_num:
                         prob:float = self.probabilities_list[space_num]
-                        cv2.circle(img=result,
+                        if not math.isnan(prob):
+                            cv2.circle(img=result,
                                    center=(CELL_SIZE * col + CELL_SIZE // 2, CELL_SIZE * row + CELL_SIZE // 2),
                                    radius= CELL_SIZE // 3,
-                                   color=(0.5 - 0.5 * prob, 0.5 - 0.5 * prob, 1 - 0.5 * prob),
+                                   color=(int(127 - 127 * prob), int(127 - 127 * prob), int(255 - 127 * prob)),
                                    thickness=int(prob * CELL_SIZE//3))
                     cv2.putText(img=result,
                                 text=f"{space_num}",
                                 org=(int(CELL_SIZE * (col + 0.25))+1, int(CELL_SIZE * (row + 0.75))+1),
                                 fontFace=cv2.FONT_HERSHEY_SIMPLEX,
                                 fontScale=0.5,
-                                color=(1, 1, 1),
+                                color=(255, 255, 255),
                                 thickness=2)
                     self.coordinate_list.append((row, col))
                     cv2.putText(img=result,
@@ -126,7 +128,7 @@ class HMMRobotWorldViewer:
                                 org=(int(CELL_SIZE*(col + 0.25)), int(CELL_SIZE*(row + 0.75))),
                                 fontFace=cv2.FONT_HERSHEY_SIMPLEX,
                                 fontScale=0.5,
-                                color=(0.5, 0.25, 0),
+                                color=(127, 64, 0),
                                 thickness=2)
                     space_num += 1
         return result
@@ -141,9 +143,13 @@ class HMMRobotWorldViewer:
         for spot in stops:
             x = int((self.coordinate_list[spot][1]+0.2+0.6*random.random())*CELL_SIZE)
             y = int((self.coordinate_list[spot][0]+0.2+0.6*random.random())*CELL_SIZE)
-            if last_x is not None:
-                cv2.line(img=canvas, pt1=(last_x, last_y), pt2= (x, y),
-                         color=(0.5+0.2*math.sin(theta), 0.5+0.2*math.cos(2*theta), 0.5+0.2*math.sin(theta/3)),
+            if last_x is not None and last_y is not None:
+                cv2.line(img=canvas,
+                         pt1=(last_x, last_y),
+                         pt2= (x, y),
+                         color=(int(255*(0.5+0.2*math.sin(theta))),
+                                int(255*(0.5+0.2*math.cos(2*theta))),
+                                int(255*(0.5+0.2*math.sin(theta/3)))),
                          thickness=2)
             last_x = x
             last_y = y

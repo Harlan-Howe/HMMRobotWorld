@@ -1,5 +1,5 @@
 import random
-from sysconfig import expand_makefile_vars
+# from sysconfig import expand_makefile_vars
 from typing import Optional, List, Tuple
 
 import cv2
@@ -28,9 +28,9 @@ class HMMRobotRunner:
         self.viewer.set_probabilities_list(ps)
         self.viewer.display_observations(observation_list=obs, accuracy=OBSERVATION_ACCURACY_RATE)
         self.viewer.display_world()
-        # self.test_viterbi(obs, path)
+        self.test_viterbi(obs, path)
 
-        # self.test_forward_backward(obs)
+        self.test_forward_backward(obs)
         pi_matrix, trans, obs = self.baum_welch(obs)
 
     def test_forward_backward(self, obs: list[int]):

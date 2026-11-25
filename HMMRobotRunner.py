@@ -30,8 +30,11 @@ class HMMRobotRunner:
         self.viewer.display_world()
         self.test_viterbi(obs, path)
 
-        self.test_forward_backward(obs)
+        # self.test_forward_backward(obs)
         pi_matrix, trans, obs = self.baum_welch(obs)
+        print(f"PI:\n{pi_matrix}")
+        print("-"*20+f"\nTrans:\n{trans}")
+        print("-"*20+f"\nObservations:\n{obs}")
 
     def test_forward_backward(self, obs: list[int]):
         probabilities = self.calculate_probabilities(obs)
@@ -42,22 +45,34 @@ class HMMRobotRunner:
                                              highlight_obs_num=i)
             cv2.waitKey(500)
 
-    def test_viterbi(self, obs: list[int], path: list[int]):
+    def test_viterbi(self, obs: list[int], actual_path: list[int]):
+        """
+        Based on the list of observations, predict what the path of the robot was and compare it visually with the path
+        the robot actually took.
+        :param obs: a list of observations (0-15)
+        :param actual_path: an equally sized list of square numbers that the robot actually took, as our ground truth.
+        :return: None
+        """
         predicted_path = self.calculate_viterbi(obs)
 
         missed = 0
-        for i in range(len(path)):
-            print(f"{chr(i + 65)}\t{path[i]}\t{predicted_path[i]}")
-            if path[i] != predicted_path[i]:
+        for i in range(len(actual_path)):
+            print(f"{chr(i + 65)}\t{actual_path[i]}\t{predicted_path[i]}")
+            if actual_path[i] != predicted_path[i]:
                 missed += 1
         print(f'Num missed = {missed}')
-        print(f"Accuracy = {(1 - missed / len(path)) * 100:3.2f}%")
+        print(f"Accuracy = {(1 - missed / len(actual_path)) * 100:3.2f}%")
         print(f"Observtion Accuracy = {OBSERVATION_ACCURACY_RATE * 100:3.2f}")
-        self.viewer.display_world()
+        self.viewer.display_world(wait_for_keystroke=False, dismiss=False)
 
         self.viewer.draw_path(predicted_path)
 
     def load_file(self, filename) -> np.ndarray:
+        """
+        read the data from the file to establish our ground truth map.
+        :param filename: the name of the file to open.
+        :return: a 2d numpy array of 0 and 1 values representing our map.
+        """
         map_list = []
         try:
             with open(file=filename, mode='r') as f:
@@ -73,10 +88,13 @@ class HMMRobotRunner:
             print(f"An error occurred: {e}")
         finally:
             f.close()
-
         return np.array(map_list)
 
     def build_T_and_O(self):
+        """
+        Constructs the "actual" self.transition_matrix and self.observation_matrix used behind the scenes.
+        :return: None
+        """
         numbered_map = self.world * -1
         count = 0
         for row in range(self.world.shape[0]):
@@ -118,6 +136,12 @@ class HMMRobotRunner:
                                     self.observation_matrix[index,loc] = value
 
     def generate_path_and_observations(self, N: int) -> Tuple[List[int],List[int]]:
+        """
+        generates a "behind the scenes" path of N steps that the robot actually followed, and the corresponding N
+        observations that the robot made about its surroundings.
+        :param N: the number of steps to generate
+        :return: the actual path (a list of N square numbers) and the observations (a list of N observation values 0-15)
+        """
         hidden_path: List[int] = []
         observations: List[int] = []
 
@@ -147,7 +171,8 @@ class HMMRobotRunner:
     def calculate_viterbi(self, observations:List[int]) -> List[int]:
         """
         :param observations: a list of N observations (0-15 each) of what walls the robot saw
-        :return: a list of the most likely path through the
+        :return: the most likely path through the world that would correspond to the observations, a list of N square
+        numbers.
         """
         N = len(observations)
 

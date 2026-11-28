@@ -1,5 +1,4 @@
 import random
-# from sysconfig import expand_makefile_vars
 from typing import Optional, List, Tuple
 
 import cv2
@@ -14,9 +13,9 @@ class HMMRobotRunner:
         self.num_open_squares = np.count_nonzero(self.world == 0)
         self.pi_matrix: Optional[np.ndarray] = None
         self.transition_matrix: Optional[np.ndarray] = None
-        self.observation_matrix: Optional[np.ndarray] = None
+        self.emission_matrix: Optional[np.ndarray] = None
         self.viewer = None
-        self.build_T_and_O()
+        self.build_A_and_B()
 
         self.viewer = HMMRobotWorldViewer(self.world)
         self.viewer.display_world(wait_for_keystroke=False, dismiss=False)
@@ -31,10 +30,10 @@ class HMMRobotRunner:
         self.test_viterbi(obs, path)
 
         # self.test_forward_backward(obs)
-        pi_matrix, trans, obs = self.baum_welch(obs)
+        pi_matrix, trans, emissions = self.baum_welch(obs)
         print(f"PI:\n{pi_matrix}")
         print("-"*20+f"\nTrans:\n{trans}")
-        print("-"*20+f"\nObservations:\n{obs}")
+        print("-"*20+f"\nObservations:\n{emissions}")
 
     def test_forward_backward(self, obs: list[int]):
         probabilities = self.calculate_probabilities(obs)
@@ -90,7 +89,7 @@ class HMMRobotRunner:
             f.close()
         return np.array(map_list)
 
-    def build_T_and_O(self):
+    def build_A_and_B(self):
         """
         Constructs the "actual" self.transition_matrix and self.observation_matrix used behind the scenes.
         :return: None
@@ -104,7 +103,7 @@ class HMMRobotRunner:
                     count += 1
         self.pi_matrix = np.ones(self.num_open_squares, dtype=float) / self.num_open_squares
         self.transition_matrix = np.zeros((self.num_open_squares, self.num_open_squares), dtype=float)
-        self.observation_matrix = np.zeros((self.num_open_squares, 16), dtype=float)
+        self.emission_matrix = np.zeros((self.num_open_squares, 16), dtype=float)
 
         deltas = ((-1, 0), (0, 1), (1, 0), (0, -1))  # N/1, E/2, S/4, W/8
         for row in range(numbered_map.shape[0]):
@@ -133,7 +132,7 @@ class HMMRobotRunner:
                                     ((2 * s - 1) * observation_probabilities[2] + 1 - s) * \
                                     ((2 * w - 1) * observation_probabilities[3] + 1 - w)
                                     loc = n + 2 * e + 4 * s + 8 * w
-                                    self.observation_matrix[index,loc] = value
+                                    self.emission_matrix[index,loc] = value
 
     def generate_path_and_observations(self, N: int) -> Tuple[List[int],List[int]]:
         """
@@ -151,7 +150,7 @@ class HMMRobotRunner:
             rnd = random.random()
             hidden_path.append(p)
             for i in range(16):
-                sum+= self.observation_matrix[p][i]
+                sum+= self.emission_matrix[p][i]
                 if rnd <= sum:
                     observations.append(i)
                     break
@@ -177,12 +176,12 @@ class HMMRobotRunner:
         N = len(observations)
 
         V = np.zeros((N+1, self.num_open_squares), dtype=float)
-        V[0] = self.pi_matrix * self.observation_matrix[:,observations[0]]
+        V[0] = self.pi_matrix * self.emission_matrix[:,observations[0]]
         back = np.array([[0 for _ in range(self.num_open_squares)] for _  in range(N)])
         for step in range(1, N):
             for possible_current_loc in range(self.num_open_squares):
                 mesh = V[step-1] * self.transition_matrix[:, possible_current_loc]
-                mesh = mesh * self.observation_matrix[possible_current_loc, observations[step]]
+                mesh = mesh * self.emission_matrix[possible_current_loc, observations[step]]
                 V[step, possible_current_loc] = np.max(mesh)
                 back[step, possible_current_loc] = np.argmax(mesh)
 
@@ -207,7 +206,7 @@ class HMMRobotRunner:
         if trans_matrix is None:
             trans_matrix = self. transition_matrix
         if obs_matrix is None:
-            obs_matrix = self.observation_matrix
+            obs_matrix = self.emission_matrix
 
         alpha = np.zeros((N, self.num_open_squares), dtype=float)
         alpha[0, :] = pi_matrix[:]
@@ -222,7 +221,7 @@ class HMMRobotRunner:
         if trans_matrix is None:
             trans_matrix = self. transition_matrix
         if obs_matrix is None:
-            obs_matrix = self.observation_matrix
+            obs_matrix = self.emission_matrix
         beta = np.ones((N, self.num_open_squares), dtype=float)
         for i in range(N-2, -1, -1):
             beta[i, :] = trans_matrix.dot(beta[i+1, :] * obs_matrix[:, observations[i]])
@@ -239,7 +238,7 @@ class HMMRobotRunner:
         if trans_matrix is None:
             trans_matrix = self. transition_matrix
         if obs_matrix is None:
-            obs_matrix = self.observation_matrix
+            obs_matrix = self.emission_matrix
         alpha = self.forward(observations, pi_matrix=pi_matrix, trans_matrix=trans_matrix, obs_matrix=obs_matrix)
         beta = self.backward(observations, trans_matrix=trans_matrix, obs_matrix=obs_matrix)
         gamma = alpha * beta
@@ -251,20 +250,20 @@ class HMMRobotRunner:
     def baum_welch(self, observations: List[int]) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         pi_matrix = np.random.rand(self.num_open_squares)
         transition_matrix = np.random.rand(self.num_open_squares, self.num_open_squares)
-        observation_matrix = np.random.rand(self.num_open_squares, 16)
+        emission_matrix = np.random.rand(self.num_open_squares, 16)
 
         for i in range(10):
-            gamma, xi = self.expectation(observations, pi_matrix, transition_matrix, observation_matrix)
-            pi_matrix, transition_matrix, observation_matrix = self.maximization(gamma, xi, observations)
+            gamma, xi = self.expectation(observations, pi_matrix, transition_matrix, emission_matrix)
+            pi_matrix, transition_matrix, emission_matrix = self.maximization(gamma, xi, observations)
 
-        return pi_matrix, transition_matrix, observation_matrix
+        return pi_matrix, transition_matrix, emission_matrix
 
 
     def expectation(self, observations: List[int],
                     pi_matrix:np.ndarray,
                     trans_matrix:np.ndarray,
-                    obs_matrix:np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
-        gamma = self.calculate_probabilities(observations, pi_matrix, trans_matrix, obs_matrix)
+                    ems_matrix:np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+        gamma = self.calculate_probabilities(observations, pi_matrix, trans_matrix, ems_matrix)
         xi = np.zeros(( len(observations)-1, self.num_open_squares, self.num_open_squares), dtype=float)
         for i in range(len(observations)-1):
             xi[i] = gamma[i, :, np.newaxis] * gamma[i+1, :]
@@ -276,14 +275,14 @@ class HMMRobotRunner:
         divisor = np.sum(gamma, axis=0)
         trans_matrix /= divisor
 
-        obs_matrix = np.zeros((self.num_open_squares, 16), dtype=float)
+        ems_matrix = np.zeros((self.num_open_squares, 16), dtype=float)
         for i in range(self.num_open_squares):
             for t in range(gamma.shape[0]):
-                obs_matrix[i, observations[t]] += gamma[t, i]
+                ems_matrix[i, observations[t]] += gamma[t, i]
         for j in range(16):
-            obs_matrix[:,j] /= np.sum(gamma, axis=0)
+            ems_matrix[:,j] /= np.sum(gamma, axis=0)
 
-        return pi_matrix, trans_matrix, obs_matrix
+        return pi_matrix, trans_matrix, ems_matrix
 
 if __name__ == "__main__":
     hmm_RR = HMMRobotRunner()
